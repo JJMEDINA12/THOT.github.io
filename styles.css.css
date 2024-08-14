@@ -1,0 +1,47 @@
+/* Estilo básico para el cuerpo */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+}
+
+/* Contenedor principal */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Estilo para el mapa */
+#map {
+    height: 500px;
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+/* Punto verde personalizado en el mapa */
+.green-point {
+    background-color: #76ff03;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+}
+
+/* Botón para obtener la ubicación */
+#locationButton {
+    display: block;
+    margin: 0 auto;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#locationButton:hover {
+    background-color: #0056b3;
+}

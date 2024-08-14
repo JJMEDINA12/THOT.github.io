@@ -1,0 +1,476 @@
+<html><head><base href="https://websim.apporima.com/thot/"><title>THOT - Sistema Avanzado de Registro Geográfico</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', Arial, sans-serif;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+  #map {
+    height: calc(100% - 60px);
+    width: 100%;
+  }
+  #topBar {
+    height: 60px;
+    background-color: #3498db;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+  }
+  .topBarButton {
+    background-color: #2980b9;
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+  }
+  .topBarButton:hover {
+    background-color: #2c3e50;
+  }
+  #formContainer, #passwordPrompt {
+    position: absolute;
+    top: 70px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    max-width: 300px;
+    display: none;
+    z-index: 1000;
+    max-height: calc(100% - 90px);
+    overflow-y: auto;
+  }
+  input, select {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  label {
+    font-weight: bold;
+    display: block;
+    margin-top: 10px;
+  }
+  .number-input {
+    display: flex;
+    align-items: center;
+  }
+  .number-input button {
+    width: 30px;
+    height: 30px;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    cursor: pointer;
+  }
+  .number-input input {
+    width: 50px;
+    text-align: center;
+  }
+  .close-btn {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+  }
+  .close-btn:hover {
+    color: #333;
+  }
+  .radio-group {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0;
+  }
+  .radio-group label {
+    flex: 1;
+    text-align: center;
+  }
+  .checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 5px 0;
+  }
+  .checkbox-group label {
+    flex-basis: calc(50% - 5px);
+  }
+</style>
+</head>
+<body>
+<div id="topBar">
+  <button id="toggleForm" class="topBarButton">Nuevo Registro</button>
+  <span>THOT</span>
+  <div>
+    <button id="toggleAdminMode" class="topBarButton">Modo Admin</button>
+    <button id="downloadKML" class="topBarButton">Descargar Puntos</button>
+  </div>
+</div>
+<div id="map"></div>
+<div id="formContainer">
+  <form id="registrationForm">
+    <input type="hidden" id="registrationDate" name="registrationDate">
+    <label for="registrationId">ID:</label>
+    <input type="text" id="registrationId" name="registrationId" required pattern="PR\d{5}" placeholder="PR00001">
+    <label for="fullName">Nombre completo:</label>
+    <input type="text" id="fullName" name="fullName" required pattern="^[A-Za-zÑñÁáÉéÍíÓóÚú]+(\s[A-Za-zÑñÁáÉéÍíÓóÚú]+)*$">
+    <label for="cellphone">Número de celular:</label>
+    <input type="tel" id="cellphone" name="cellphone" required pattern="[0-9]{10}">
+    
+    <label>WhatsApp:</label>
+    <div class="radio-group">
+      <label><input type="radio" name="whatsapp" value="SI" required> SI</label>
+      <label><input type="radio" name="whatsapp" value="NO" required> NO</label>
+    </div>
+
+    <label for="cedula">NÚMERO DE CEDULA:</label>
+    <input type="number" id="cedula" name="cedula">
+
+    <label>QUE REDES SOCIALES MÁS USAS:</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" name="socialNetworks" value="Facebook"> Facebook</label>
+      <label><input type="checkbox" name="socialNetworks" value="WhatsApp"> WhatsApp</label>
+      <label><input type="checkbox" name="socialNetworks" value="Tiktok"> Tiktok</label>
+      <label><input type="checkbox" name="socialNetworks" value="Instagram"> Instagram</label>
+      <label><input type="checkbox" name="socialNetworks" value="Twitter"> Twitter</label>
+      <label><input type="checkbox" name="socialNetworks" value="YouTube"> YouTube</label>
+    </div>
+
+    <label for="adultMembers">Número de integrantes mayores de edad:</label>
+    <div class="number-input">
+      <button type="button" onclick="changeNumber('adultMembers', -1)">-</button>
+      <input type="number" id="adultMembers" name="adultMembers" value="1" min="1" required>
+      <button type="button" onclick="changeNumber('adultMembers', 1)">+</button>
+    </div>
+
+    <label>VOTASTE EN LAS ÚLTIMAS ELECCIONES:</label>
+    <div class="radio-group">
+      <label><input type="radio" name="votedLastElection" value="SI" required> SI</label>
+      <label><input type="radio" name="votedLastElection" value="NO" required> NO</label>
+    </div>
+
+    <label for="lastVote">¿POR QUIEN VOTASTE?:</label>
+    <select id="lastVote" name="lastVote" required>
+      <option value="">Seleccione una opción</option>
+      <option value="RAMON EDUARDO CALLE CADAVID">RAMON EDUARDO CALLE CADAVID</option>
+      <option value="GABRIEL EDUARDO MÉNDEZ PINEDA">GABRIEL EDUARDO MÉNDEZ PINEDA</option>
+      <option value="GERMAN ANDRES ANGULO MARTINEZ">GERMAN ANDRES ANGULO MARTINEZ</option>
+      <option value="EDWIN RAUL ÁLVAREZ JIMENEZ">EDWIN RAUL ÁLVAREZ JIMENEZ</option>
+      <option value="RENE ALBERTO ARRIETA CÓRDOBA">RENE ALBERTO ARRIETA CÓRDOBA</option>
+    </select>
+
+    <label for="futureVote">¿SI HOY FUERAN LAS ELECCIONES POR QUIEN VOTARÍAS?:</label>
+    <select id="futureVote" name="futureVote" required>
+      <option value="">Seleccione una opción</option>
+      <option value="RAMON EDUARDO CALLE CADAVID">RAMON EDUARDO CALLE CADAVID</option>
+      <option value="GABRIEL EDUARDO MÉNDEZ PINEDA">GABRIEL EDUARDO MÉNDEZ PINEDA</option>
+      <option value="GERMAN ANDRES ANGULO MARTINEZ">GERMAN ANDRES ANGULO MARTINEZ</option>
+      <option value="EDWIN RAUL ÁLVAREZ JIMENEZ">EDWIN RAUL ÁLVAREZ JIMENEZ</option>
+      <option value="RENE ALBERTO ARRIETA CÓRDOBA">RENE ALBERTO ARRIETA CÓRDOBA</option>
+    </select>
+
+    <label for="vereda">VEREDA:</label>
+    <select id="vereda" name="vereda" required>
+      <option value="">Seleccione una vereda</option>
+      <option value="Arroyón">Arroyón</option>
+      <option value="La Fé">La Fé</option>
+      <option value="La Manta">La Manta</option>
+      <option value="Arenoso">Arenoso</option>
+      <option value="Campo Bello">Campo Bello</option>
+      <option value="Carolina">Carolina</option>
+      <option value="Centro Alegre">Centro Alegre</option>
+      <option value="El Almendro">El Almendro</option>
+      <option value="El Guayabo">El Guayabo</option>
+      <option value="El Reparo">El Reparo</option>
+      <option value="Las Pelonas">Las Pelonas</option>
+      <option value="Loma de Piedra">Loma de Piedra</option>
+      <option value="Los Cerros">Los Cerros</option>
+      <option value="Marañonal">Marañonal</option>
+      <option value="Marimba">Marimba</option>
+      <option value="Medio Rancho Nuevo">Medio Rancho Nuevo</option>
+      <option value="Paraíso">Paraíso</option>
+      <option value="Pamplona">Pamplona</option>
+      <option value="Planetica">Planetica</option>
+      <option value="Plaza Bonita">Plaza Bonita</option>
+      <option value="Providencia">Providencia</option>
+      <option value="Punta Verde">Punta Verde</option>
+      <option value="Santa Ana">Santa Ana</option>
+      <option value="Santa Rosa">Santa Rosa</option>
+    </select>
+
+    <label for="barrio">BARRIO:</label>
+    <select id="barrio" name="barrio" required>
+      <option value="">Seleccione un barrio</option>
+      <option value="Alfonso López">Alfonso López</option>
+      <option value="Balcón del Sinú">Balcón del Sinú</option>
+      <option value="Belen">Belen</option>
+      <option value="Centro">Centro</option>
+      <option value="Coveñitas">Coveñitas</option>
+      <option value="El Bosque">El Bosque</option>
+      <option value="El Carmen">El Carmen</option>
+      <option value="El Prado">El Prado</option>
+      <option value="El Progreso">El Progreso</option>
+      <option value="Flor del Sinú">Flor del Sinú</option>
+      <option value="Galán">Galán</option>
+      <option value="La Esperanza">La Esperanza</option>
+      <option value="La Floresta">La Floresta</option>
+      <option value="La Granja">La Granja</option>
+      <option value="Las Cañaveras">Las Cañaveras</option>
+      <option value="Las Margaritas">Las Margaritas</option>
+      <option value="Miraflores">Miraflores</option>
+      <option value="Nuevo Oriente">Nuevo Oriente</option>
+      <option value="Ospina Pérez">Ospina Pérez</option>
+      <option value="Pompeya">Pompeya</option>
+      <option value="San Marcos">San Marcos</option>
+      <option value="San Martin">San Martin</option>
+      <option value="Santander">Santander</option>
+      <option value="Villa Hermosa">Villa Hermosa</option>
+      <option value="Villa Luz">Villa Luz</option>
+    </select>
+
+    <input type="hidden" id="latitude" name="latitude">
+    <input type="hidden" id="longitude" name="longitude">
+    <button type="submit" style="margin-top: 10px;">Registrar</button>
+  </form>
+</div>
+
+<div id="passwordPrompt">
+  <span class="close-btn" onclick="closePasswordPrompt()">&times;</span>
+  <h3>Ingrese la contraseña para agregar un punto manual</h3>
+  <input type="password" id="adminPassword" placeholder="Contraseña">
+  <button onclick="validatePassword()">Validar</button>
+</div>
+
+<script>
+  let map, markers = [], adminMode = false, userLocation, tempLatLng;
+  const planetaRicaCoordenadas = [8.4054, -75.5895]; // Coordenadas de Planeta Rica, Córdoba
+  const adminPassword = "Dlm@#051231";
+  const maxDistance = 50; // Distancia máxima en metros para agregar un punto sin contraseña
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    document.getElementById('toggleForm').addEventListener('click', toggleForm);
+    document.getElementById('downloadKML').addEventListener('click', downloadKML);
+    document.getElementById('toggleAdminMode').addEventListener('click', toggleAdminMode);
+    document.getElementById('registrationForm').addEventListener('submit', handleSubmit);
+    loadMarkers();
+  });
+
+  function initMap() {
+    map = L.map('map', {
+      maxZoom: 22
+    }).setView(planetaRicaCoordenadas, 13);
+
+    // Capa de Mapbox Satellite
+    L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+      attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      tileSize: 512,
+      zoomOffset: -1,
+      maxZoom: 22
+    }).addTo(map);
+
+    // Capa de Google Satellite como respaldo
+    const googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+      maxZoom: 22,
+      subdomains:['mt0','mt1','mt2','mt3']
+    });
+
+    // Agregar control de capas
+    L.control.layers({
+      "Mapbox Satellite": L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw'),
+      "Google Satellite": googleSat
+    }).addTo(map);
+
+    map.on('click', function(e) {
+      tempLatLng = e.latlng;
+      if (userLocation) {
+        const distance = map.distance(e.latlng, userLocation);
+        if (distance <= maxDistance) {
+          showFormAtLocation(e.latlng);
+        } else {
+          showPasswordPrompt();
+        }
+      } else {
+        showPasswordPrompt();
+      }
+    });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        userLocation = L.latLng(position.coords.latitude, position.coords.longitude);
+        map.setView(userLocation, 15);
+        L.circleMarker(userLocation, {
+          color: 'green',
+          fillColor: 'green',
+          fillOpacity: 1,
+          radius: 8
+        }).addTo(map).bindPopup('Tu ubicación actual').openPopup();
+      },
+      () => {
+        console.log("No se pudo obtener la ubicación del usuario");
+      }
+    );
+  }
+
+  function showPasswordPrompt() {
+    document.getElementById('passwordPrompt').style.display = 'block';
+  }
+
+  function closePasswordPrompt() {
+    document.getElementById('passwordPrompt').style.display = 'none';
+    document.getElementById('adminPassword').value = '';
+  }
+
+  function validatePassword() {
+    const enteredPassword = document.getElementById('adminPassword').value;
+    if (enteredPassword === adminPassword) {
+      closePasswordPrompt();
+      showFormAtLocation(tempLatLng);
+    } else {
+      alert('Contraseña incorrecta. Acceso denegado.');
+    }
+    document.getElementById('adminPassword').value = '';
+  }
+
+  function toggleForm() {
+    const formContainer = document.getElementById('formContainer');
+    formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none';
+    if (formContainer.style.display === 'block') {
+      document.getElementById('registrationDate').value = new Date().toISOString();
+    }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Procesar redes sociales seleccionadas
+    data.socialNetworks = Array.from(formData.getAll('socialNetworks')).join(', ');
+    
+    addMarker([data.latitude, data.longitude], data);
+    saveMarker(data);
+    
+    toggleForm();
+    e.target.reset();
+  }
+
+  function addMarker(location, data) {
+    const marker = L.marker(location, {
+      icon: L.divIcon({
+        className: 'custom-div-icon',
+        html: `<div style="background-color: #2ecc71; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center;">${data.registrationId}</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      })
+    }).addTo(map);
+
+    marker.bindPopup(`<b>ID:</b> ${data.registrationId}<br><b>Nombre:</b> ${data.fullName}`);
+    markers.push({ marker, data });
+  }
+
+  function changeNumber(id, change) {
+    const input = document.getElementById(id);
+    input.value = Math.max(1, parseInt(input.value) + change);
+  }
+
+  function downloadKML() {
+    let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>THOT Registros</name>
+    <description>Puntos registrados en la aplicación THOT</description>`;
+
+    markers.forEach(({ marker, data }) => {
+      const { lat, lng } = marker.getLatLng();
+      kml += `
+    <Placemark>
+      <name>${data.registrationId}</name>
+      <description>
+        <![CDATA[
+          <h3>Registro ${data.registrationId}</h3>
+          <p><strong>Fecha:</strong> ${new Date(data.registrationDate).toLocaleString()}</p>
+          <p><strong>Nombre:</strong> ${data.fullName}</p>
+          <p><strong>Celular:</strong> ${data.cellphone}</p>
+          <p><strong>WhatsApp:</strong> ${data.whatsapp}</p>
+          <p><strong>Cédula:</strong> ${data.cedula || 'No proporcionada'}</p>
+          <p><strong>Redes Sociales:</strong> ${data.socialNetworks}</p>
+          <p><strong>Mayores de edad:</strong> ${data.adultMembers}</p>
+          <p><strong>Votó en últimas elecciones:</strong> ${data.votedLastElection}</p>
+          <p><strong>Último voto:</strong> ${data.lastVote}</p>
+          <p><strong>Intención de voto:</strong> ${data.futureVote}</p>
+          <p><strong>Vereda:</strong> ${data.vereda}</p>
+          <p><strong>Barrio:</strong> ${data.barrio}</p>
+        ]]>
+      </description>
+      <Point>
+        <coordinates>${lng},${lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+    });
+
+    kml += `
+  </Document>
+</kml>`;
+
+    const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'THOT_Registros.kml';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function toggleAdminMode() {
+    adminMode = !adminMode;
+    document.getElementById('toggleAdminMode').textContent = adminMode ? 'Modo Usuario' : 'Modo Admin';
+    map.closePopup();
+  }
+
+  function showFormAtLocation(latlng) {
+    const formContainer = document.getElementById('formContainer');
+    formContainer.style.display = 'block';
+    document.getElementById('registrationDate').value = new Date().toISOString();
+    document.getElementById('latitude').value = latlng.lat;
+    document.getElementById('longitude').value = latlng.lng;
+  }
+
+  function saveMarker(data) {
+    let savedMarkers = JSON.parse(localStorage.getItem('thotMarkers')) || [];
+    savedMarkers.push(data);
+    localStorage.setItem('thotMarkers', JSON.stringify(savedMarkers));
+  }
+
+  function loadMarkers() {
+    let savedMarkers = JSON.parse(localStorage.getItem('thotMarkers')) || [];
+    savedMarkers.forEach(data => {
+      addMarker([data.latitude, data.longitude], data);
+    });
+  }
+</script>
+</body>
+</html>
